@@ -10,21 +10,20 @@ const (
 )
 
 type skiplistNode struct {
-	value    interface{}
-	backward *skiplistNode
-	levels   []*skiplistLevel
-	score    float64
+	objPointer interface{} //指向真实节点的指针
+	backward   *skiplistNode
+	levels     []*skiplistLevel
 }
 
-func newSkiplistNode(level int, value interface{}, score float64) {
+func newSkiplistNode(level int, objPointer interface{}) {
 	levels := make([]*skiplistLevel, level)
 	for i := 0; i < level; i++ {
 		levels[i] = new(skiplistLevel)
 	}
 	return &skiplistNode{
-		value:    value,
-		backward: nil,
-		levels:   levels,
+		objPointer: objPointer,
+		backward:   nil,
+		levels:     levels,
 	}
 }
 
