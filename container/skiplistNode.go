@@ -1,4 +1,4 @@
-package sortedset
+package container
 
 import (
 	"math/rand"
@@ -10,20 +10,20 @@ const (
 )
 
 type skiplistNode struct {
-	objPointer interface{} //指向真实节点的指针
-	backward   *skiplistNode
-	levels     []*skiplistLevel
+	obj      interface{} //指向真实节点的指针
+	backward *skiplistNode
+	levels   []*skiplistLevel
 }
 
-func newSkiplistNode(level int, objPointer interface{}) {
+func newSkiplistNode(level int, obj interface{}) {
 	levels := make([]*skiplistLevel, level)
 	for i := 0; i < level; i++ {
 		levels[i] = new(skiplistLevel)
 	}
 	return &skiplistNode{
-		objPointer: objPointer,
-		backward:   nil,
-		levels:     levels,
+		obj:      obj,
+		backward: nil,
+		levels:   levels,
 	}
 }
 
