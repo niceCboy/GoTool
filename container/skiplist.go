@@ -1,6 +1,8 @@
 package container
 
-import ()
+import (
+	"errors"
+)
 
 /*
   it's not concurrent safe and not ensure unique
@@ -19,7 +21,7 @@ type skipList struct {
 
 func newSkiplist(cf func(obj1, obj2 interface{}) int) *skipList {
 	return &skipList{
-		header:  newSkiplistNode(MAXLEVEL, nil, 0),
+		header:  newSkiplistNode(MAXLEVEL, nil),
 		tail:    nil,
 		update:  make([]*skiplistNode, MAXLEVEL),
 		rank:    make([]int, MAXLEVEL),
@@ -30,7 +32,7 @@ func newSkiplist(cf func(obj1, obj2 interface{}) int) *skipList {
 }
 
 func (s *skipList) flush() {
-	s.header = newSkiplistNode(MAXLEVEL, nil, 0)
+	s.header = newSkiplistNode(MAXLEVEL, nil)
 	s.tail = nil
 	s.update = make([]*skiplistNode, MAXLEVEL)
 	s.rank = make([]int, MAXLEVEL)
@@ -81,16 +83,16 @@ func (s *skipList) insert(obj interface{}) error {
 	n = newSkiplistNode(level, obj)
 	for l := 0; l < level; l++ {
 		//更新l层的链表
-		n.levels[l].forward = s.update[l].level[l].forward
-		s.update[l].level[i].forward = n
+		n.levels[l].forward = s.update[l].levels[l].forward
+		s.update[l].levels[l].forward = n
 		//更新l层的跨度记录
-		n.levels[l].span = s.update[l].level[l].span - (s.rank[0] - s.rank[l])
-		s.update[l] = s.rank[0] - s.rank[l] + 1
+		n.levels[l].span = s.update[l].levels[l].span - (s.rank[0] - s.rank[l])
+		s.update[l].levels[l].span = s.rank[0] - s.rank[l] + 1
 	}
 
 	//增加未达到层数的跨度记录
 	for l := level; l < s.level; l++ {
-		s.update[l].level[l].span++
+		s.update[l].levels[l].span++
 	}
 
 	//更新最底层链前缀元素
@@ -99,8 +101,8 @@ func (s *skipList) insert(obj interface{}) error {
 	} else {
 		n.backward = s.update[0]
 	}
-	if n.level[0].forward != nil {
-		n.level[0].forward.backward = n
+	if n.levels[0].forward != nil {
+		n.levels[0].forward.backward = n
 	} else {
 		s.tail = n
 	}
@@ -109,39 +111,40 @@ func (s *skipList) insert(obj interface{}) error {
 }
 
 func (s *skipList) delete(obj interface{}) error {
-	node, err := findPreNodes(obj)
+	node, err := s.findPreNodes(obj)
 	if err != nil {
 		return err
 	}
+	if node != nil && s.compare(node.obj, obj) == 0 { //找到节点
+		s.deleteNode(node, s.update)
+	}
+	return nil
+}
 
-	if node != nil && s.compare(node.obj, obj) == 0 {
-		for l := 0; l < s.level; l++ {
-			if s.update[l].levels[l].forward == node {
-				s.update[l].levels[l].span += node.levels[l].span - 1
-				s.update[l].levels[l].forward = node.levels[l].forward
-			} else {
-				s.update[l].levels.span -= 1
-			}
+func (s *skipList) deleteNode(node *skiplistNode, update []*skiplistNode) {
+	for l := 0; l < s.level; l++ {
+		if s.update[l].levels[l].forward == node {
+			s.update[l].levels[l].span += node.levels[l].span - 1
+			s.update[l].levels[l].forward = node.levels[l].forward
+		} else {
+			s.update[l].levels[l].span -= 1
 		}
-	} else {
-		return nil //未找到
 	}
 
 	//更新前缀节点
-	if node.level[0].forward != nil {
-		node.level[0].forward.backward = node.backward
+	if node.levels[0].forward != nil {
+		node.levels[0].forward.backward = node.backward
 	} else {
 		s.tail = node.backward
 	}
 
 	//清空最上层
-	for s.level > 1 && s.header.level[s.level-1].forward == nil {
+	for s.level > 1 && s.header.levels[s.level-1].forward == nil {
 		s.level--
 	}
 
 	//减小长度
 	s.length--
-	return nil
 }
 
 /*找到各层最后一个compare计算不大于0的node,记录在update中，返回第一层的update的下一节点*/
@@ -171,11 +174,11 @@ func (s *skipList) findPreNodes(obj interface{}) (node *skiplistNode, err error)
 			}
 		}
 	}
-	return s.update[0].forward, nil
+	return s.update[0].levels[0].forward, nil
 }
 
 func (s *skipList) contain(obj interface{}) (bool, error) {
-	node, err := findPreNodes(obj)
+	node, err := s.findPreNodes(obj)
 	if err != nil {
 		return false, err
 	}
@@ -198,6 +201,9 @@ func (s *skipList) list() []interface{} {
 
 /*返回节点持有的元素对象*/
 func (s *skipList) getByRank(rank int) interface{} {
+	if s.length < rank {
+		return nil
+	}
 	n := s.header
 	traversed := 0
 	for l := s.level - 1; l >= 0; l-- {
@@ -212,11 +218,33 @@ func (s *skipList) getByRank(rank int) interface{} {
 	return nil
 }
 
+func (s *skipList) deleteByRank(rank int) interface{} {
+	if s.length < rank {
+		return nil
+	}
+	n := s.header
+	traversed := 0
+	for l := s.level - 1; l >= 0; l-- {
+		for n.levels[l].forward != nil && traversed+n.levels[l].span < rank {
+			traversed += n.levels[l].span
+			n = n.levels[l].forward
+		}
+		s.update[l] = n
+	}
+
+	n = n.next(0)
+	traversed++
+	if n != nil && traversed == rank {
+		s.deleteNode(n, s.update)
+	}
+	return n.obj
+}
+
 func (s *skipList) getRank(obj interface{}) (rank int, err error) {
 	n := s.header
 	for l := s.level - 1; l >= 0; l-- {
 		for n.levels[l].forward != nil {
-			rtv, e := compareWithRecover(s.compare, n.levels[i].forward.obj, obj)
+			rtv, e := compareWithRecover(s.compare, n.levels[l].forward.obj, obj)
 			if e != nil {
 				rank = 0
 				err = e
@@ -227,7 +255,7 @@ func (s *skipList) getRank(obj interface{}) (rank int, err error) {
 				n = n.levels[l].forward
 			} else if rtv < 0 {
 				break
-			} else if rtv == 0 && n.levels[i].forward.obj == obj {
+			} else if rtv == 0 && n.levels[l].forward.obj == obj {
 				rank += n.levels[l].span
 				return
 			} else { // rtv ==0 && n.levels[i].forward.obj != obj
@@ -240,10 +268,11 @@ func (s *skipList) getRank(obj interface{}) (rank int, err error) {
 			}
 		}
 	}
-	return 0
+	return
 }
 
-func (s *skipList) getTops(num int) ([]interface{}, error) {
+/*的到前num个数*/
+func (s *skipList) getTopN(num int) ([]interface{}, error) {
 	if s.length < num {
 		return nil, errors.New("giving number is bigger than the size of set")
 	}
@@ -277,12 +306,37 @@ func (s *skipList) getRangeByRank(start, end int) ([]interface{}, error) {
 	}
 
 	ds := []interface{}{}
-	count := 0
-	num := end - start + 1
-	for count < num {
+	for traversed <= end {
 		ds = append(ds, n.obj)
 		n = n.next(0)
-		count++
+		traversed++
+	}
+	return ds, nil
+}
+
+func (s *skipList) deleteRangeByRank(start, end int) ([]interface{}, error) {
+	if start >= end || s.length < end {
+		return nil, errors.New("wrong index of set")
+	}
+	n := s.header
+	traversed := 0
+	for l := s.level - 1; l >= 0; l-- {
+		for n.levels[l].forward != nil && traversed+n.levels[l].span < start {
+			traversed += n.levels[l].span
+			n = n.levels[l].forward
+		}
+		s.update[l] = n
+	}
+
+	//>=start的第一个点
+	traversed++
+	ds := []interface{}{}
+	n = n.next(0)
+	for n != nil && traversed <= end {
+		s.deleteNode(n, s.update)
+		ds = append(ds, n.obj)
+		traversed++
+		n = n.next(0)
 	}
 	return ds, nil
 }

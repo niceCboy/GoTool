@@ -45,8 +45,13 @@ func (s *Set) Delete(d interface{}) bool {
 	if s.typeCheck != nil && !withRecover(s.typeCheck, d) || !s.Contain(d) {
 		return false
 	}
-	delete(s.data, d)
+	s.DeleteRaw(d)
 	return true
+}
+
+/*不对类型和存在进行检查，提高效率*/
+func (s *Set) DeleteRaw(d interface{}) {
+	delete(s.data, d)
 }
 
 func (s *Set) Contain(d interface{}) bool {

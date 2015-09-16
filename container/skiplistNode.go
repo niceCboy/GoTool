@@ -15,7 +15,7 @@ type skiplistNode struct {
 	levels   []*skiplistLevel
 }
 
-func newSkiplistNode(level int, obj interface{}) {
+func newSkiplistNode(level int, obj interface{}) *skiplistNode {
 	levels := make([]*skiplistLevel, level)
 	for i := 0; i < level; i++ {
 		levels[i] = new(skiplistLevel)
@@ -40,7 +40,7 @@ func (sn *skiplistNode) prev() *skiplistNode {
 	return sn.backward
 }
 
-func randonLevel() int {
+func randomLevel() int {
 	level := 1
 	for (rand.Int63()&0xFFFF)%PART == 0 { //25%的概率增长层数
 		level += 1

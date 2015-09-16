@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"math/rand"
 )
 
 type SortedSet struct {
@@ -45,6 +46,31 @@ func (ss *SortedSet) Delete(d interface{}) (bool, error) {
 	}
 }
 
+func (ss *SortedSet) PopByRank(rank int) interface{} {
+	obj := ss.sl.deleteByRank(rank)
+	if obj != nil {
+		ss.set.DeleteRaw(obj)
+	}
+	return obj
+}
+
+/*随机取出一个元素*/
+func (ss *SortedSet) PopRandom() interface{} {
+	return ss.PopByRank(rand.Int() % ss.Length())
+}
+
+func (ss *SortedSet) PopByRanges(start, end int) ([]interface{}, error) {
+	objs, err := ss.sl.deleteRangeByRank(start, end)
+	for obj := range objs {
+		ss.set.DeleteRaw(obj)
+	}
+	return objs, err
+}
+
+func (ss *SortedSet) GetTopN(n int) ([]interface{}, error) {
+	return ss.sl.getTopN(n)
+}
+
 func (ss *SortedSet) Contain(d interface{}) bool {
 	return ss.set.Contain(d)
 }
@@ -59,6 +85,7 @@ func (ss *SortedSet) Flush() []interface{} {
 	return ds
 }
 
+/*返回集合的有序列表*/
 func (ss *SortedSet) List() []interface{} {
 	return ss.sl.list()
 }
