@@ -1,4 +1,4 @@
-package mContainer
+package container
 
 import (
 	"math/rand"

@@ -1,4 +1,4 @@
-package mTool
+package tool
 
 import (
    "runtime/debug"
