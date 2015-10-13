@@ -27,6 +27,10 @@ type (
 )
 
 func InitConf(l *Load, p Parser) *Conf {
+	if l == nil {
+		panic("load part can't be nil")
+	}
+
 	cf := &Conf{
 		m: make(map[string]interface{}),
 		l: l,
@@ -64,9 +68,10 @@ func (l *Load) loadDefault() (ret []byte, e error) {
 	path, _ := os.Getwd()
 loadloop:
 	for {
-		if _, err := os.Stat(path + "/conf/" + l.RunMode + "/" + l.FileName); err == nil {
-			ret, e = ioutil.ReadFile(l.SpecPath)
-			return
+		filePath := path + "/conf/" + l.RunMode + "/" + l.FileName
+		if _, err := os.Stat(filePath); err == nil {
+			ret, e = ioutil.ReadFile(filePath)
+			break loadloop
 		}
 		path = path[:strings.LastIndex(path, "/")] //上一级目录路径
 		if path == "/" {                           //已遍历到根目录
@@ -74,8 +79,9 @@ loadloop:
 			break loadloop
 		}
 	}
+	return
 }
 
 func (l *Load) loadSpec() ([]byte, error) {
-	return ioutil.ReadFile(l.SpecPath)
+	return ioutil.ReadFile(l.SpecPath + "/" + l.FileName)
 }
