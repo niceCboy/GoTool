@@ -81,6 +81,12 @@ func (c *Conf) Float64(key string) (float64, error) {
 			return v.(float64), nil
 		case float32:
 			return float64(v.(float32)), nil
+		case int:
+			return float64(v.(int)), nil
+		case int32:
+			return float64(v.(int32)), nil
+		case int64:
+			return float64(v.(int64)), nil
 		default:
 			return 0.0, errors.New("conf: Float64 syntaxError.")
 
@@ -99,10 +105,21 @@ func (c *Conf) DefaultFloat64(key string, defaultval float64) float64 {
 }
 
 func (c *Conf) String(key string) (string, error) {
-	if v, ok1 := c.m[key]; ok1 {
-		if vs, ok2 := v.(string); ok2 {
-			return vs, nil
-		} else {
+	if v, ok := c.m[key]; ok {
+		switch v.(type) {
+		case string:
+			return v.(string), nil
+		case int:
+			return strconv.FormatInt(int64(v.(int)), 10), nil
+		case int64:
+			return strconv.FormatInt(v.(int64), 10), nil
+		case int32:
+			return strconv.FormatInt(int64(v.(int32)), 10), nil
+		case float64:
+			return strconv.FormatFloat(v.(float64), 'f', -1, 64), nil
+		case float32:
+			return strconv.FormatFloat(float64(v.(float32)), 'f', -1, 32), nil
+		default:
 			return "", errors.New("conf: String syntaxError.")
 		}
 	} else {
@@ -146,6 +163,30 @@ func (c *Conf) Strings(key string) ([]string, error) {
 			ret := []string{}
 			for _, vi := range v.([]int) {
 				ret = append(ret, strconv.FormatInt(int64(vi), 10))
+			}
+			return ret, nil
+		case []int32:
+			ret := []string{}
+			for _, vi := range v.([]int32) {
+				ret = append(ret, strconv.FormatInt(int64(vi), 10))
+			}
+			return ret, nil
+		case []int64:
+			ret := []string{}
+			for _, vi := range v.([]int64) {
+				ret = append(ret, strconv.FormatInt(vi, 10))
+			}
+			return ret, nil
+		case []float32:
+			ret := []string{}
+			for _, vi := range v.([]float32) {
+				ret = append(ret, strconv.FormatFloat(float64(vi), 'f', -1, 64))
+			}
+			return ret, nil
+		case []float64:
+			ret := []string{}
+			for _, vi := range v.([]float64) {
+				ret = append(ret, strconv.FormatFloat(vi, 'f', -1, 64))
 			}
 			return ret, nil
 		default:
@@ -192,6 +233,30 @@ func (c *Conf) Ints(key string) ([]int, error) {
 			return ret, nil
 		case []int:
 			return v.([]int), nil
+		case []int32:
+			ret := []int{}
+			for _, vi := range v.([]int32) {
+				ret = append(ret, int(vi))
+			}
+			return ret, nil
+		case []int64:
+			ret := []int{}
+			for _, vi := range v.([]int64) {
+				ret = append(ret, int(vi))
+			}
+			return ret, nil
+		case []float32:
+			ret := []int{}
+			for _, vi := range v.([]float32) {
+				ret = append(ret, int(vi))
+			}
+			return ret, nil
+		case []float64:
+			ret := []int{}
+			for _, vi := range v.([]float64) {
+				ret = append(ret, int(vi))
+			}
+			return ret, nil
 		default:
 			return nil, errors.New("conf: Ints syntaxError.")
 		}
@@ -202,6 +267,78 @@ func (c *Conf) Ints(key string) ([]int, error) {
 
 func (c *Conf) DefaultInts(key string, defaultval []int) []int {
 	if v, err := c.Ints(key); err != nil {
+		return defaultval
+	} else {
+		return v
+	}
+}
+
+func (c *Conf) Float64s(key string) ([]float64, error) {
+	if v, ok := c.m[key]; ok {
+		switch v.(type) {
+		case []interface{}:
+			ret := []float64{}
+			for _, vi := range v.([]interface{}) {
+				switch vi.(type) {
+				case string:
+					vv, _ := strconv.ParseFloat(vi.(string), 64)
+					ret = append(ret, vv)
+				case int:
+					ret = append(ret, float64(vi.(int)))
+				case int64:
+					ret = append(ret, float64(vi.(int64)))
+				case int32:
+					ret = append(ret, float64(vi.(int32)))
+				case float64:
+					ret = append(ret, vi.(float64))
+				case float32:
+					ret = append(ret, float64(vi.(float32)))
+				}
+			}
+			return ret, nil
+		case []string:
+			ret := []float64{}
+			for _, vi := range v.([]string) {
+				vv, _ := strconv.ParseFloat(vi, 64)
+				ret = append(ret, vv)
+			}
+			return ret, nil
+		case []float64:
+			return v.([]float64), nil
+		case []float32:
+			ret := []float64{}
+			for _, vi := range v.([]float32) {
+				ret = append(ret, float64(vi))
+			}
+			return ret, nil
+		case []int:
+			ret := []float64{}
+			for _, vi := range v.([]int) {
+				ret = append(ret, float64(vi))
+			}
+			return ret, nil
+		case []int64:
+			ret := []float64{}
+			for _, vi := range v.([]int64) {
+				ret = append(ret, float64(vi))
+			}
+			return ret, nil
+		case []int32:
+			ret := []float64{}
+			for _, vi := range v.([]int32) {
+				ret = append(ret, float64(vi))
+			}
+			return ret, nil
+		default:
+			return nil, errors.New("conf: Float64s syntaxError.")
+		}
+	} else {
+		return nil, errors.New("conf key is not exist")
+	}
+}
+
+func (c *Conf) DefaultFloat64s(key string, defaultval []float64) []float64 {
+	if v, err := c.Float64s(key); err != nil {
 		return defaultval
 	} else {
 		return v
