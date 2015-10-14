@@ -1,7 +1,7 @@
 package tool
 
 import (
-   "runtime/debug"
+	"runtime/debug"
 )
 
 type PanicLogger interface {
